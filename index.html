@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>消融看板 · 跳转中</title>
+<style>
+  body { font-family: system-ui, -apple-system, sans-serif; display: flex;
+         align-items: center; justify-content: center; height: 100vh; margin: 0; color: #555; }
+  div { max-width: 30em; text-align: center; line-height: 1.8; padding: 1em; }
+  code { background: #f3f3f3; padding: 2px 6px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<div id="msg">正在跳转到看板…</div>
+<script>
+(function () {
+  var msg = document.getElementById('msg');
+  fetch('current.json?t=' + Date.now(), { cache: 'no-store' })
+    .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(function (d) {
+      if (d && d.url) { location.replace(d.url); }
+      else { msg.innerHTML = '未配置跳转地址（current.json 缺少 url 字段）'; }
+    })
+    .catch(function (e) {
+      msg.innerHTML = '看板暂不可用：<code>' + e.message + '</code>。<br>请先在本机运行 <code>start_dashboard_public.bat</code> 启动隧道。';
+    });
+})();
+</script>
+</body>
+</html>
