@@ -31,9 +31,15 @@
       fetch(d.url+'/api/health?t='+Date.now(),{cache:'no-store',mode:'cors',signal:ctrl.signal})
         .then(function(r){
           clearTimeout(timer);
-          // r.ok=隧道健康；401=隧道在但看板要登录——都说明隧道活着，跳转
-          if(r.ok || r.status===401){ location.replace(d.url); }
-          else { say('看板暂不可用（隧道未启动）'); }
+          if(r.ok || r.status===401){
+            // 凭据恒定：从 current.json 取 user/pass，拼进目标 URL，隧道变了凭据不变
+            var target=d.url;
+            if(d.user && d.pass){
+              var host=d.url.replace(/^https?:\/\//,'');
+              target='https://'+encodeURIComponent(d.user)+':'+encodeURIComponent(d.pass)+'@'+host+'/';
+            }
+            location.replace(target);
+          } else { say('看板暂不可用（隧道未启动）'); }
         })
         .catch(function(){ clearTimeout(timer); say('看板暂不可用（隧道未启动）'); });
     })
