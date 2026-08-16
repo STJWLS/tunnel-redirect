@@ -2,28 +2,37 @@
 <html lang="zh">
 <head>
 <meta charset="utf-8">
-<title>消融看板 · 跳转中</title>
+<title>消融看板 · 跳转</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-  body { font-family: system-ui, -apple-system, sans-serif; display: flex;
-         align-items: center; justify-content: center; height: 100vh; margin: 0; color: #555; }
-  div { max-width: 30em; text-align: center; line-height: 1.8; padding: 1em; }
-  code { background: #f3f3f3; padding: 2px 6px; border-radius: 4px; }
+  body{font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;color:#0f1830;background:#f0f4fa}
+  .box{max-width:30em;text-align:center;line-height:1.9;padding:2em}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:#35d6ee;margin-right:8px;animation:pulse 1.6s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+  code{background:#e6ecf5;padding:2px 6px;border-radius:5px;font-size:.92em}
+  .muted{color:#6b7c99;font-size:.9em}
 </style>
 </head>
 <body>
-<div id="msg">正在跳转到看板…</div>
+<div class="box">
+  <div style="font-size:15px"><span class="dot"></span><span id="msg">正在检查看板状态…</span></div>
+  <div class="muted" style="margin-top:14px">固定入口 · 自动跳转到当前消融实验看板</div>
+</div>
 <script>
-(function () {
-  var msg = document.getElementById('msg');
-  fetch('current.json?t=' + Date.now(), { cache: 'no-store' })
-    .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
-    .then(function (d) {
-      if (d && d.url) { location.replace(d.url); }
-      else { msg.innerHTML = '未配置跳转地址（current.json 缺少 url 字段）'; }
+(function(){
+  var msg=document.getElementById('msg');
+  function say(t){ msg.textContent=t; }
+  fetch('current.json?t='+Date.now(),{cache:'no-store'})
+    .then(function(r){ if(!r.ok) throw 0; return r.json(); })
+    .then(function(d){
+      if(!d || !d.url){ say('看板尚未配置地址'); return; }
+      var ctrl=new AbortController();
+      var timer=setTimeout(function(){ ctrl.abort(); }, 6000);
+      fetch(d.url+'/api/health?t='+Date.now(),{cache:'no-store',mode:'cors',signal:ctrl.signal})
+        .then(function(){ clearTimeout(timer); location.replace(d.url); })
+        .catch(function(){ clearTimeout(timer); say('看板暂不可用（隧道未启动）'); });
     })
-    .catch(function (e) {
-      msg.innerHTML = '看板暂不可用：<code>' + e.message + '</code>。<br>请先在本机运行 <code>start_dashboard_public.bat</code> 启动隧道。';
-    });
+    .catch(function(){ say('看板暂不可用'); });
 })();
 </script>
 </body>
