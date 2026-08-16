@@ -29,7 +29,12 @@
       var ctrl=new AbortController();
       var timer=setTimeout(function(){ ctrl.abort(); }, 6000);
       fetch(d.url+'/api/health?t='+Date.now(),{cache:'no-store',mode:'cors',signal:ctrl.signal})
-        .then(function(){ clearTimeout(timer); location.replace(d.url); })
+        .then(function(r){
+          clearTimeout(timer);
+          // r.ok=隧道健康；401=隧道在但看板要登录——都说明隧道活着，跳转
+          if(r.ok || r.status===401){ location.replace(d.url); }
+          else { say('看板暂不可用（隧道未启动）'); }
+        })
         .catch(function(){ clearTimeout(timer); say('看板暂不可用（隧道未启动）'); });
     })
     .catch(function(){ say('看板暂不可用'); });
