@@ -31,12 +31,8 @@
         .then(function(r){
           clearTimeout(timer);
           if(r.ok || r.status===401){
-            var target=d.url;
-            if(d.user && d.pass){
-              var host=d.url.replace(/^https?:\/\//,'');
-              target='https://'+encodeURIComponent(d.user)+':'+encodeURIComponent(d.pass)+'@'+host+'/';
-            }
-            // 地址栏保持 github.io，看板内容嵌在 iframe 里
+            // token 放查询参数，URL 不含凭据 → iframe 内所有子资源正常加载
+            var target = d.url + (d.token ? ('/?token='+encodeURIComponent(d.token)) : '/');
             frame.src=target;
             loading.style.display='none';
             frame.style.display='block';
