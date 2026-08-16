@@ -42,6 +42,24 @@
     })
     .catch(function(){ say('看板暂不可用'); });
 })();
+
+// 隧道重连检测：每 30s 检查 current.json，URL 变了就更新 iframe（避免隧道重连后白屏）
+function pollTunnel(){
+  fetch('current.json?t='+Date.now(), {cache:'no-store'})
+    .then(function(r){ if(!r.ok) throw 0; return r.json(); })
+    .then(function(d){
+      if(!d || !d.url) return;
+      var frame = document.getElementById('frame');
+      if(!frame) return;
+      var host = d.url.replace(/^https?:\/\//,'');
+      var curHost = frame.src.replace(/^https?:\/\//,'').split('/')[0];
+      if(curHost !== host){
+        frame.src = d.url + (d.token ? ('/?token='+encodeURIComponent(d.token)) : '/');
+      }
+    })
+    .catch(function(){});
+}
+setInterval(pollTunnel, 30000);
 </script>
 </body>
 </html>
