@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>消融实验进展仪表板</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{margin:0;font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;color:#0f1830;background:#f0f4fa}
+  .loading{display:flex;align-items:center;justify-content:center;height:100vh;text-align:center;line-height:1.9;font-size:15px}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:#35d6ee;margin-right:8px;animation:pulse 1.6s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+  iframe#frame{position:fixed;inset:0;width:100%;height:100%;border:0;display:none}
+</style>
+</head>
+<body>
+<div id="loading" class="loading"><span class="dot"></span><span id="msg">正在检查看板状态…</span></div>
+<iframe id="frame" title="消融实验看板"></iframe>
+<script>
+/* 仓库基路径（如 /tunnel-redirect/），自动取 pathname 第一段，通用 */
+var TR_BASE = (function(){ var seg = location.pathname.split('/'); return '/' + (seg[1] || '') + '/'; })();
+function trSuffix(){
+  var p = location.pathname;
+  return p.indexOf(TR_BASE) === 0 ? p.slice(TR_BASE.length).replace(/^\/+/, '') : p.replace(/^\/+/, '');
+}
+/* 构造隧道目标：隧道URL + 后缀路径 + 原查询参数 + token */
+function trBuildTarget(d){
+  var suffix = trSuffix();
+  var q = location.search.replace(/^\?/, '');
+  var path = suffix ? ('/' + suffix) : '/';
+  var parts = [];
+  if(q) parts.push(q);
+  if(d.token) parts.push('token=' + encodeURIComponent(d.token));
+  return d.url + path + (parts.length ? ('?' + parts.join('&')) : '');
+}
+(function(){
+  var msg = document.getElementById('msg');
+  var frame = document.getElementById('frame');
+  var loading = document.getElementById('loading');
+  var tunnelOrigin = '';
+  function say(t){ msg.textContent = t; }
+  function loadFrame(d){
+    try{ tunnelOrigin = new URL(d.url).origin; }catch(e){ tunnelOrigin = ''; }
+    frame.src = trBuildTarget(d);
+    loading.style.display = 'none';
+    frame.style.display = 'block';
+  }
+  fetch(location.origin + TR_BASE + 'current.json?t=' + Date.now(), {cache:'no-store'})
+    .then(function(r){ if(!r.ok) throw 0; return r.json(); })
+    .then(function(d){
+      if(!d || !d.url){ say('看板尚未配置地址'); return; }
+      var ctrl = new AbortController();
+      var timer = setTimeout(function(){ ctrl.abort(); }, 6000);
+      fetch(d.url + '/api/health?t=' + Date.now(), {cache:'no-store', mode:'cors', signal:ctrl.signal})
+        .then(function(r){
+          clearTimeout(timer);
+          if(r.ok || r.status === 401){ loadFrame(d); }
+          else { say('看板暂不可用（隧道未启动）'); }
+        })
+        .catch(function(){ clearTimeout(timer); say('看板暂不可用（隧道未启动）'); });
+    })
+    .catch(function(){ say('看板暂不可用'); });
+  /* 地址栏跟随 iframe 内导航：来源必须是当前隧道，路径不含 token */
+  window.addEventListener('message', function(e){
+    if(!e.data || !e.data.__tunnelPath) return;
+    if(!e.origin || (tunnelOrigin && e.origin !== tunnelOrigin)) return;
+    var base = TR_BASE.replace(/\/$/, '');
+    history.replaceState(null, '', location.origin + base + e.data.__tunnelPath);
+  });
+})();
+/* 隧道重连检测：URL 变化时保留当前后缀重建 */
+function pollTunnel(){
+  fetch(location.origin + TR_BASE + 'current.json?t=' + Date.now(), {cache:'no-store'})
+    .then(function(r){ if(!r.ok) throw 0; return r.json(); })
+    .then(function(d){
+      if(!d || !d.url) return;
+      var frame = document.getElementById('frame');
+      if(!frame) return;
+      var host = d.url.replace(/^https?:\/\//, '');
+      var curHost = frame.src.replace(/^https?:\/\//, '').split('/')[0];
+      if(curHost !== host){
+        frame.src = trBuildTarget(d);
+      }
+    })
+    .catch(function(){});
+}
+setInterval(pollTunnel, 15000);
+</script>
+</body>
+</html>
